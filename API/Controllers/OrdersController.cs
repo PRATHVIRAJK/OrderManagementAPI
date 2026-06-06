@@ -5,12 +5,12 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class OrdersApiController : ControllerBase
+    public class OrdersController  : ControllerBase
     {
         private readonly IOrderService _service;
 
-        private readonly ILogger<OrdersApiController> _logger;
-        public OrdersApiController(IOrderService service, ILogger<OrdersApiController> logger)
+        private readonly ILogger<OrdersController > _logger;
+        public OrdersController (IOrderService service, ILogger<OrdersController > logger)
         {
             _service = service;
             _logger = logger;

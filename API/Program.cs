@@ -68,7 +68,11 @@ if (app.Environment.IsDevelopment())
     {
         options.SwaggerEndpoint("/openapi/v1.json", "Orders API V1");
     });
+
+    // Redirect root to Swagger UI to avoid unmatched route attempts
+    app.MapGet("/", () => Results.Redirect("/swagger"));
 }
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
@@ -78,8 +82,6 @@ app.MapHealthChecks("/health",new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
-
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllers();
 
