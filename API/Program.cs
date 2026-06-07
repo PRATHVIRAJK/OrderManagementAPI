@@ -27,14 +27,14 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
-
+//HealthCheck for database
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 //DI
 builder.Services.AddScoped<IOrderRepository, SqlOrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
-//HealthCheck for database
-builder.Services.AddHealthChecks()
-    .AddCheck<DatabaseHealthCheck>("database");
+
 //Check for Traces and Metrics
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("OrdersAPI"))
@@ -52,10 +52,6 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddConsoleExporter();
     });
-builder.Logging.AddOpenTelemetry(logging =>
-{
-    logging.AddConsoleExporter().SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("OrdersAPI"));
-});
 //Serilog
 builder.Host.UseSerilog();
 

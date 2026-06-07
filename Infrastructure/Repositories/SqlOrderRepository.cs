@@ -1,9 +1,5 @@
 ﻿using Application.Interfaces;
 using Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories
@@ -42,13 +38,10 @@ namespace Infrastructure.Repositories
 
         public async Task DeleteAsync(int id)
         {
-            var order = await _context.Orders.FindAsync(id);
-
-            if (order != null)
-            {
-                _context.Orders.Remove(order);
-                await _context.SaveChangesAsync();
-            }
+            var order = new Order { Id = id };
+            _context.Orders.Attach(order);
+            _context.Orders.Remove(order);
+            await _context.SaveChangesAsync();
         }
     }
 }

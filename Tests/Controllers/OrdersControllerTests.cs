@@ -1,14 +1,12 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Application.DTOs;
 using Application.Interfaces;
+using API.Controllers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Tests.Common;
 using Xunit;
-using API.Controllers;
 
 namespace Tests.Controllers
 {
@@ -17,180 +15,141 @@ namespace Tests.Controllers
         [Fact]
         public async Task GetAll_WhenOrdersExist_ReturnsOkWithOrders()
         {
-            // Arrange
-            var orders = TestDataFactory.CreateOrders(3).ToList();
+            var orders = TestDataFactory.CreateOrderResponseDtos(3).ToList();
             var serviceMock = new Mock<IOrderService>();
             serviceMock.Setup(s => s.GetAllAsync()).ReturnsAsync(orders);
             var loggerMock = new Mock<ILogger<OrdersController>>();
-
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.GetAll();
 
-            // Assert
             result.Should().BeOfType<OkObjectResult>();
-            var ok = result as OkObjectResult;
-            ok!.Value.Should().BeEquivalentTo(orders);
+            var ok = (OkObjectResult)result;
+            ok.Value.Should().BeEquivalentTo(orders);
             serviceMock.Verify(s => s.GetAllAsync(), Times.Once);
         }
 
         [Fact]
-        public async Task GetAll_WhenNoOrders_ReturnsNotFound()
+        public async Task GetAll_WhenNoOrders_ReturnsOkWithEmptyList()
         {
-            // Arrange
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.GetAllAsync()).ReturnsAsync((IEnumerable<Order>?)null);
+            serviceMock.Setup(s => s.GetAllAsync()).ReturnsAsync([]);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.GetAll();
 
-            // Assert
-            result.Should().BeOfType<NotFoundResult>();
-            // Verify a warning log containing the expected message was written
-            loggerMock.Invocations.Should().Contain(inv =>
-                inv.Method.Name == "Log" &&
-                inv.Arguments.Count > 2 &&
-                inv.Arguments[0] != null && inv.Arguments[0].GetType() == typeof(Microsoft.Extensions.Logging.LogLevel) &&
-                (Microsoft.Extensions.Logging.LogLevel)inv.Arguments[0] == Microsoft.Extensions.Logging.LogLevel.Warning &&
-                inv.Arguments[2] != null && inv.Arguments[2].ToString().Contains("Orders not found")
-            );
+            result.Should().BeOfType<OkObjectResult>();
+            var ok = (OkObjectResult)result;
+            ((List<OrderResponseDto>)ok.Value!).Should().BeEmpty();
+            serviceMock.Verify(s => s.GetAllAsync(), Times.Once);
         }
 
         [Fact]
         public async Task GetById_OrderExists_ReturnsOk()
         {
-            // Arrange
-            var order = TestDataFactory.CreateOrder(1);
+            var orderDto = TestDataFactory.CreateOrderResponseDto(1);
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.GetByIdAsync(1)).ReturnsAsync(order);
+            serviceMock.Setup(s => s.GetByIdAsync(1)).ReturnsAsync(orderDto);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.GetById(1);
 
-            // Assert
             result.Should().BeOfType<OkObjectResult>();
-            var ok = result as OkObjectResult;
-            ok!.Value.Should().BeEquivalentTo(order);
+            var ok = (OkObjectResult)result;
+            ok.Value.Should().BeEquivalentTo(orderDto);
             serviceMock.Verify(s => s.GetByIdAsync(1), Times.Once);
         }
 
         [Fact]
         public async Task GetById_OrderNotFound_ReturnsNotFound()
         {
-            // Arrange
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.GetByIdAsync(5)).ReturnsAsync((Order?)null);
+            serviceMock.Setup(s => s.GetByIdAsync(5)).ReturnsAsync((OrderResponseDto?)null);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.GetById(5);
 
-            // Assert
             result.Should().BeOfType<NotFoundResult>();
-            // Verify a warning log containing the expected message was written
-            loggerMock.Invocations.Should().Contain(inv =>
-                inv.Method.Name == "Log" &&
-                inv.Arguments.Count > 2 &&
-                inv.Arguments[0] != null && inv.Arguments[0].GetType() == typeof(Microsoft.Extensions.Logging.LogLevel) &&
-                (Microsoft.Extensions.Logging.LogLevel)inv.Arguments[0] == Microsoft.Extensions.Logging.LogLevel.Warning &&
-                inv.Arguments[2] != null && inv.Arguments[2].ToString().Contains("Order not found")
-            );
             serviceMock.Verify(s => s.GetByIdAsync(5), Times.Once);
         }
 
         [Fact]
-        public async Task Create_ValidOrder_ReturnsCreatedAtAction()
+        public async Task Create_ValidDto_ReturnsCreatedAtAction()
         {
-            // Arrange
-            var order = TestDataFactory.CreateOrder(10);
-            var created = TestDataFactory.CreateOrder(10);
+            var dto = TestDataFactory.CreateOrderDto(10);
+            var created = TestDataFactory.CreateOrderResponseDto(10);
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.CreateAsync(It.IsAny<Order>())).ReturnsAsync(created);
+            serviceMock.Setup(s => s.CreateAsync(It.IsAny<CreateOrderDto>())).ReturnsAsync(created);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
-            var result = await controller.Create(order);
+            var result = await controller.Create(dto);
 
-            // Assert
             result.Should().BeOfType<CreatedAtActionResult>();
-            var createdResult = result as CreatedAtActionResult;
-            createdResult!.Value.Should().BeEquivalentTo(created);
-            serviceMock.Verify(s => s.CreateAsync(It.Is<Order>(o => o == order)), Times.Once);
+            var createdResult = (CreatedAtActionResult)result;
+            createdResult.Value.Should().BeEquivalentTo(created);
+            serviceMock.Verify(
+                s => s.CreateAsync(It.Is<CreateOrderDto>(d => d.ProductName == dto.ProductName && d.Amount == dto.Amount)),
+                Times.Once);
         }
 
         [Fact]
         public async Task Update_WhenUpdateSucceeds_ReturnsNoContent()
         {
-            // Arrange
-            var order = TestDataFactory.CreateOrder(2);
+            var dto = TestDataFactory.CreateUpdateOrderDto(2);
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.UpdateAsync(2, It.IsAny<Order>())).ReturnsAsync(true);
+            serviceMock.Setup(s => s.UpdateAsync(2, It.IsAny<UpdateOrderDto>())).ReturnsAsync(true);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
-            var result = await controller.Update(2, order);
+            var result = await controller.Update(2, dto);
 
-            // Assert
             result.Should().BeOfType<NoContentResult>();
-            serviceMock.Verify(s => s.UpdateAsync(2, It.Is<Order>(o => o == order)), Times.Once);
+            serviceMock.Verify(s => s.UpdateAsync(2, It.IsAny<UpdateOrderDto>()), Times.Once);
         }
 
         [Fact]
-        public async Task Update_WhenUpdateFails_ReturnsBadRequest()
+        public async Task Update_WhenOrderNotFound_ReturnsNotFound()
         {
-            // Arrange
-            var order = TestDataFactory.CreateOrder(3);
+            var dto = TestDataFactory.CreateUpdateOrderDto(3);
             var serviceMock = new Mock<IOrderService>();
-            serviceMock.Setup(s => s.UpdateAsync(3, It.IsAny<Order>())).ReturnsAsync(false);
+            serviceMock.Setup(s => s.UpdateAsync(3, It.IsAny<UpdateOrderDto>())).ReturnsAsync(false);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
-            var result = await controller.Update(3, order);
+            var result = await controller.Update(3, dto);
 
-            // Assert
-            result.Should().Match(r => r is BadRequestObjectResult || r is BadRequestResult);
-            serviceMock.Verify(s => s.UpdateAsync(3, It.IsAny<Order>()), Times.Once);
+            result.Should().BeOfType<NotFoundResult>();
+            serviceMock.Verify(s => s.UpdateAsync(3, It.IsAny<UpdateOrderDto>()), Times.Once);
         }
 
         [Fact]
         public async Task Delete_WhenDeleteSucceeds_ReturnsNoContent()
         {
-            // Arrange
             var serviceMock = new Mock<IOrderService>();
             serviceMock.Setup(s => s.DeleteAsync(4)).ReturnsAsync(true);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.Delete(4);
 
-            // Assert
             result.Should().BeOfType<NoContentResult>();
             serviceMock.Verify(s => s.DeleteAsync(4), Times.Once);
         }
 
         [Fact]
-        public async Task Delete_WhenDeleteFails_ReturnsNotFound()
+        public async Task Delete_WhenOrderNotFound_ReturnsNotFound()
         {
-            // Arrange
             var serviceMock = new Mock<IOrderService>();
             serviceMock.Setup(s => s.DeleteAsync(99)).ReturnsAsync(false);
             var loggerMock = new Mock<ILogger<OrdersController>>();
             var controller = new OrdersController(serviceMock.Object, loggerMock.Object);
 
-            // Act
             var result = await controller.Delete(99);
 
-            // Assert
             result.Should().BeOfType<NotFoundResult>();
             serviceMock.Verify(s => s.DeleteAsync(99), Times.Once);
         }

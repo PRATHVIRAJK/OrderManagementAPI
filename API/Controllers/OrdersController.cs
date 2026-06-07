@@ -1,105 +1,86 @@
-﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Application.Interfaces;
+using Application.DTOs;
+
 namespace API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class OrdersController : ControllerBase
+    public class OrdersController(IOrderService service, ILogger<OrdersController> logger) : ControllerBase
     {
-        private readonly IOrderService _service;
-
-        private readonly ILogger<OrdersController> _logger;
-        public OrdersController(IOrderService service, ILogger<OrdersController> logger)
-        {
-            _service = service;
-            _logger = logger;
-        }
-
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var orders = await _service.GetAllAsync();
-            if(orders==null)
-            {
-                _logger.LogWarning("Orders not found");
-                return NotFound();
-            }
-            _logger.LogInformation("Orders found. Count: {Count}", orders?.Count() ?? 0);
-            return Ok(orders);
+            var orders = await service.GetAllAsync();
+            var orderList = orders.ToList();
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Orders found. Count: {Count}", orderList.Count);
+            return Ok(orderList);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var order = await _service.GetByIdAsync(id);
-            if (order == null)
+            var order = await service.GetByIdAsync(id);
+            if (order is null)
             {
-                _logger.LogWarning("Order not found {OrderId}", id);
+                logger.LogWarning("Order not found {OrderId}", id);
                 return NotFound();
             }
-            _logger.LogInformation("Order found {OrderId}", order.Id);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Order found {OrderId}", order.Id);
             return Ok(order);
         }
+
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Order order)
+        public async Task<IActionResult> Create([FromBody] CreateOrderDto dto)
         {
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Invalid order model. ModelState entries: {Count}", ModelState.Count);
+                logger.LogWarning("Invalid order model. ModelState entries: {Count}", ModelState.Count);
                 return BadRequest(ModelState);
             }
 
-            var createdOrder = await _service.CreateAsync(order);
+            var created = await service.CreateAsync(dto);
 
-            _logger.LogInformation("Order {OrderId} created for {Amount}", createdOrder.Id, createdOrder.Amount);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Order {OrderId} created for {Amount}", created.Id, created.Amount);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = createdOrder.Id },
-                createdOrder);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Order order)
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateOrderDto dto)
         {
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Invalid order model. ModelState entries: {Count}", ModelState.Count);
+                logger.LogWarning("Invalid order model. ModelState entries: {Count}", ModelState.Count);
                 return BadRequest(ModelState);
             }
 
-            if (order == null)
-            {
-                _logger.LogWarning("Update called with null order for {Id}", id);
-                return BadRequest();
-            }
-
-            if (id != order.Id)
-            {
-                _logger.LogWarning("Route id {RouteId} does not match body id {BodyId}", id, order.Id);
-                return BadRequest("Id in route does not match id in body.");
-            }
-
-            var result = await _service.UpdateAsync(id, order);
+            var result = await service.UpdateAsync(id, dto);
 
             if (!result)
-                return BadRequest();
+                return NotFound();
 
-            _logger.LogInformation("Order {OrderId} updated successfully", order.Id);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Order {OrderId} updated successfully", id);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = await _service.DeleteAsync(id);
+            var result = await service.DeleteAsync(id);
 
             if (!result)
             {
-                _logger.LogWarning("Orders not found for {id}", id);
+                logger.LogWarning("Order not found for {OrderId}", id);
                 return NotFound();
             }
-            _logger.LogInformation("Order is deleted for {id}", id);
+
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Order deleted for {OrderId}", id);
             return NoContent();
         }
     }

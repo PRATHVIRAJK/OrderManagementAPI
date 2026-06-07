@@ -1,59 +1,61 @@
-﻿using Application.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Application.DTOs;
+using Application.Interfaces;
 
 namespace Application.Services
 {
-    public class OrderService : IOrderService
+    public class OrderService(IOrderRepository orderRepository) : IOrderService
     {
-        private readonly IOrderRepository _orderRepository;
-
-        public OrderService(IOrderRepository orderRepository)
+        public async Task<IEnumerable<OrderResponseDto>> GetAllAsync()
         {
-            _orderRepository = orderRepository;
-        }
-        public async Task<IEnumerable<Order>> GetAllAsync()
-        {
-            return await _orderRepository.GetAllAsync();
+            var orders = await orderRepository.GetAllAsync();
+            return orders.Select(ToDto);
         }
 
-        public async Task<Order?> GetByIdAsync(int id)
+        public async Task<OrderResponseDto?> GetByIdAsync(int id)
         {
-            return await _orderRepository.GetByIdAsync(id);
+            var order = await orderRepository.GetByIdAsync(id);
+            return order is null ? null : ToDto(order);
         }
 
-        public async Task<Order> CreateAsync(Order order)
+        public async Task<OrderResponseDto> CreateAsync(CreateOrderDto dto)
         {
-            await _orderRepository.CreateAsync(order);
-            return order;
+            var order = new Order
+            {
+                ProductName = dto.ProductName,
+                Amount = dto.Amount
+            };
+            await orderRepository.CreateAsync(order);
+            return ToDto(order);
         }
 
-        public async Task<bool> UpdateAsync(int id, Order order)
+        public async Task<bool> UpdateAsync(int id, UpdateOrderDto dto)
         {
-            var existingOrder = await _orderRepository.GetByIdAsync(id);
-
-            if (existingOrder == null)
+            var existing = await orderRepository.GetByIdAsync(id);
+            if (existing is null)
                 return false;
 
-            existingOrder.ProductName = order.ProductName;
-            existingOrder.Amount = order.Amount;
+            existing.ProductName = dto.ProductName;
+            existing.Amount = dto.Amount;
 
-            await _orderRepository.UpdateAsync(existingOrder);
-
+            await orderRepository.UpdateAsync(existing);
             return true;
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var existingOrder = await _orderRepository.GetByIdAsync(id);
-
-            if (existingOrder == null)
+            var existing = await orderRepository.GetByIdAsync(id);
+            if (existing is null)
                 return false;
 
-            await _orderRepository.DeleteAsync(id);
-
+            await orderRepository.DeleteAsync(id);
             return true;
         }
+
+        private static OrderResponseDto ToDto(Order order) => new()
+        {
+            Id = order.Id,
+            ProductName = order.ProductName,
+            Amount = order.Amount
+        };
     }
 }

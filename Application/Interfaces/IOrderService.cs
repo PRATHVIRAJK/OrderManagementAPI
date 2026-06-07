@@ -1,18 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using Application.DTOs;
 
 namespace Application.Interfaces
 {
     public interface IOrderService
     {
-        Task<IEnumerable<Order>> GetAllAsync();
+        Task<IEnumerable<OrderResponseDto>> GetAllAsync();
 
-        Task<Order?> GetByIdAsync(int id);
+        Task<OrderResponseDto?> GetByIdAsync(int id);
 
-        Task<Order> CreateAsync(Order order);
+        Task<OrderResponseDto> CreateAsync(CreateOrderDto dto);
 
-        Task<bool> UpdateAsync(int id, Order order);
+        Task<bool> UpdateAsync(int id, UpdateOrderDto dto);
 
         Task<bool> DeleteAsync(int id);
     }

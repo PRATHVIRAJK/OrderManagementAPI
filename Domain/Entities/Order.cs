@@ -2,11 +2,10 @@
 
 public class Order
 {
-    [Required]
     public int Id { get; set; }
     [Required]
     [MaxLength(100)]
-    public string? ProductName { get; set; }
+    public string ProductName { get; set; } = string.Empty;
     [Required]
     public decimal Amount { get; set; }
 }
